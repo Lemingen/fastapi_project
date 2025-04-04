@@ -1,7 +1,9 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
 import os, shutil
 from datetime import date
+
+from sqlalchemy import select
 
 from src.models import DocumentsOrm, DocumentsTextOrm
 from src.db import session_factory, engine
@@ -25,3 +27,19 @@ def upload_file(files: list[UploadFile] = File(...)):
         session.commit()
 
     #return {"message": f"File '{file.filename}' uploaded successfully!"}
+
+@app.delete("/delete_files/{id_doc}")
+def delete_file(id_doc: int):
+    with session_factory() as session:
+        query = select(DocumentsOrm).where(DocumentsOrm.id == id_doc)
+        result = session.execute(query)
+        provider = result.scalar_one_or_none()
+
+        if not provider:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        if os.path.exists(provider.path):
+            os.remove(provider.path)
+
+        session.delete(provider)
+        session.commit()
