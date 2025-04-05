@@ -15,4 +15,8 @@ class Settings(BaseSettings):
     def get_database_url(self):
         return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
+    @property
+    def get_broker_url(self):
+        return "amqp://guest:guest@localhost:5672//"
+
 settings = Settings()

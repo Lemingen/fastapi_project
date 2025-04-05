@@ -3,10 +3,12 @@ from pydantic import BaseModel
 import os, shutil
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from src.models import DocumentsOrm, DocumentsTextOrm
 from src.db import session_factory, engine
+
+from tasks import process_doc
 
 app = FastAPI()
 
@@ -33,13 +35,18 @@ def delete_file(id_doc: int):
     with session_factory() as session:
         query = select(DocumentsOrm).where(DocumentsOrm.id == id_doc)
         result = session.execute(query)
-        provider = result.scalar_one_or_none()
+        doc = result.scalar_one_or_none()
 
-        if not provider:
+        if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        if os.path.exists(provider.path):
-            os.remove(provider.path)
+        if os.path.exists(doc.path):
+            os.remove(doc.path)
 
-        session.delete(provider)
+        session.delete(doc)
         session.commit()
+
+@app.post('/doc_analyse/{id_doc}')
+def doc_analyse(id_doc: int):
+    process_doc.apply_async([id_doc])
+    return {"message": f"Документ {id_doc} поставлен в очередь на обработку."}
