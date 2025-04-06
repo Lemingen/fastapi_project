@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     DB_USER: str
     DB_PASSWORD: str
     DB_NAME: str
+    CELERY_BROKER_URL: str
 
     @property
     def get_database_url(self):
@@ -17,6 +18,6 @@ class Settings(BaseSettings):
 
     @property
     def get_broker_url(self):
-        return "amqp://guest:guest@localhost:5672//"
+        return self.CELERY_BROKER_URL
 
 settings = Settings()

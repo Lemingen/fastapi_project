@@ -11,3 +11,4 @@ image
 pytesseract
 amqp
 celery[rabbitmq]
+flower

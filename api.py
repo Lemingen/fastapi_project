@@ -12,7 +12,12 @@ from tasks import process_doc
 
 app = FastAPI()
 
-@app.post("/upload_files/")
+@app.post(
+    "/upload_files/",
+    summary="Загрузка картинок",
+    description="Загружает один или несколько картинок на сервер и сохраняет путь и дату в базу данных.",
+    response_description="Успешная загрузка картинок"
+)
 def upload_file(files: list[UploadFile] = File(...)):
     UPLOAD_DIR = 'documents'
     doc_lst=[]
@@ -28,9 +33,17 @@ def upload_file(files: list[UploadFile] = File(...)):
         session.add_all(doc_lst)
         session.commit()
 
-    #return {"message": f"File '{file.filename}' uploaded successfully!"}
+    return {"message": f"{len(files)} картин(ок) успешно загружено."}
 
-@app.delete("/delete_files/{id_doc}")
+@app.delete(
+    "/delete_files/{id_doc}",
+    summary="Удаление картинок",
+    description="Удаляет картинку с сервера и запись о нёй из базы данных по id_doc.",
+    responses={
+        200: {"description": "Файл успешно удалён"},
+        404: {"description": "Документ не найден"}
+    }
+)
 def delete_file(id_doc: int):
     with session_factory() as session:
         query = select(DocumentsOrm).where(DocumentsOrm.id == id_doc)
@@ -45,8 +58,38 @@ def delete_file(id_doc: int):
 
         session.delete(doc)
         session.commit()
+    return {"message": f"Документ с ID {id_doc} успешно удалён."}
 
-@app.post('/doc_analyse/{id_doc}')
+
+@app.post(
+    '/doc_analyse/{id_doc}',
+    summary="Поставить картинку в очередь на обработку",
+    description="Отправляет задачу по анализу картинки по id_doc в очередь Celery.",
+    responses={
+        200: {"description": "Документ поставлен в очередь"}
+    }
+)
 def doc_analyse(id_doc: int):
     process_doc.apply_async([id_doc])
-    return {"message": f"Документ {id_doc} поставлен в очередь на обработку."}
+    return {"message": f"Картинка {id_doc} поставлена в очередь на обработку."}
+
+
+@app.get(
+    '/get_text/{id_doc}',
+    summary="Получение текста картинки",
+    description="Возвращает ранее извлечённый текст из картинки по его id_doc из DocumentsTextOrm.",
+    responses={
+        200: {"description": "Текст успешно получен"},
+        404: {"description": "Документ с текстом не найден"}
+    }
+)
+def get_text(id_doc: int):
+    with session_factory() as session:
+        query = select(DocumentsTextOrm).where(DocumentsTextOrm.id_doc == id_doc)
+        result = session.execute(query)
+        text_msg = result.scalar_one_or_none()
+
+        if not text_msg:
+            raise HTTPException(status_code=404, detail="Текст документа не найден")
+
+        return {'test':text_msg.text}
